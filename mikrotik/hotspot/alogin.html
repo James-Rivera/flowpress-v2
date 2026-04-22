@@ -1,0 +1,39 @@
+<html>
+<head>
+<title>CJ NET hotspot > redirect</title>
+<meta http-equiv="refresh" content="2; url=$(link-redirect)">
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta http-equiv="pragma" content="no-cache">
+<meta http-equiv="expires" content="-1">
+<style type="text/css">
+body{margin:0;padding:32px 16px;background:#f3efe7;color:#171717;font-size:14px;font-family:Segoe UI,Arial,sans-serif}
+.shell{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.card{width:100%;max-width:360px;background:#fff;border:1px solid rgba(23,23,23,.08);border-radius:18px;padding:24px;text-align:center;box-shadow:0 16px 34px rgba(20,23,31,.08)}
+.logo{display:block;width:100%;max-width:170px;height:auto;margin:0 auto}
+h1{font-size:30px;line-height:1.02;margin:18px 0 0}
+p{margin:14px 0 0;color:#5f5b52;line-height:1.5}
+a,a:link,a:visited,a:active{color:#2b7cff;text-decoration:none;font-weight:700}
+a:hover{text-decoration:underline}
+</style>
+<script language="JavaScript">
+<!--
+    function startClock() {
+        $(if popup == 'true')
+        open('$(link-status)', 'hotspot_status', 'toolbar=0,location=0,directories=0,status=0,menubars=0,resizable=1,width=290,height=200');
+	$(endif)
+	location.href = unescape('$(link-redirect-esc)');
+    }
+//-->
+</script>
+</head>
+<body onLoad="startClock()">
+<div class="shell">
+  <div class="card">
+    <img src="logo.svg" alt="CJ NET" class="logo" />
+    <h1>Connected</h1>
+    <p>You are now signed in. We are sending you to the next page.</p>
+    <p>If nothing happens, tap <a href="$(link-redirect)">continue</a>.</p>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<html>
+<head>
+<title>CJ NET hotspot > status</title>
+$(if refresh-timeout)
+<meta http-equiv="refresh" content="$(refresh-timeout-secs)">
+$(endif)
+<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+<meta http-equiv="pragma" content="no-cache">
+<meta http-equiv="expires" content="-1">
+<style type="text/css">
+body{margin:0;padding:24px 16px;background:#f3efe7;color:#171717;font-size:14px;font-family:Segoe UI,Arial,sans-serif}
+.shell{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.card{width:100%;max-width:420px;background:#fff;border:1px solid rgba(23,23,23,.08);border-radius:18px;padding:24px;text-align:center;box-shadow:0 16px 34px rgba(20,23,31,.08)}
+.logo{display:block;width:100%;max-width:170px;height:auto;margin:0 auto}
+h1{font-size:28px;line-height:1.05;margin:18px 0 0}
+p{margin:14px 0 0;color:#5f5b52;line-height:1.5}
+table{width:100%;margin-top:18px;border-collapse:collapse;border:1px solid rgba(23,23,23,.1);overflow:hidden;border-radius:14px}
+td{padding:10px 12px;border-bottom:1px solid rgba(23,23,23,.08);font-size:14px}
+tr:last-child td{border-bottom:none}
+td:first-child{text-align:right;color:#5f5b52;font-weight:600;width:44%}
+td:last-child{text-align:left;color:#171717}
+.warn{color:#b94a1a;font-weight:700}
+input{margin-top:20px;width:100%;padding:14px 16px;border:0;border-radius:14px;background:#ffd400;color:#171717;font-size:16px;font-weight:700}
+a,a:link,a:visited,a:active{color:#2b7cff;text-decoration:none;font-weight:700}
+a:hover{text-decoration:underline}
+</style>
+<script language="JavaScript">
+<!--
+$(if advert-pending == 'yes')
+    var popup = '';
+    function focusAdvert() {
+	if (window.focus) popup.focus();
+    }
+    function openAdvert() {
+	popup = open('$(link-advert)', 'hotspot_advert', '');
+	setTimeout("focusAdvert()", 1000);
+    }
+$(endif)
+    function openLogout() {
+	if (window.name != 'hotspot_status') return true;
+        open('$(link-logout)', 'hotspot_logout', 'toolbar=0,location=0,directories=0,status=0,menubars=0,resizable=1,width=280,height=250');
+	window.close();
+	return false;
+    }
+//-->
+</script>
+</head>
+<body
+$(if advert-pending == 'yes')
+	onLoad="openAdvert()"
+$(endif)
+>
+<div class="shell">
+  <div class="card">
+    <img src="logo.svg" alt="CJ NET" class="logo" />
+    $(if login-by == 'trial')
+    <h1>Welcome</h1>
+    <p>Trial session is active.</p>
+    $(elif login-by != 'mac')
+    <h1>Welcome $(username)</h1>
+    <p>Your hotspot session is active.</p>
+    $(else)
+    <h1>Session active</h1>
+    <p>Your hotspot connection is working.</p>
+    $(endif)
+
+    <form action="$(link-logout)" name="logout" onSubmit="return openLogout()">
+      <table>
+        <tr><td>IP address</td><td>$(ip)</td></tr>
+        <tr><td>bytes up / down</td><td>$(bytes-in-nice) / $(bytes-out-nice)</td></tr>
+      $(if session-time-left)
+        <tr><td>connected / left</td><td>$(uptime) / $(session-time-left)</td></tr>
+      $(else)
+        <tr><td>connected</td><td>$(uptime)</td></tr>
+      $(endif)
+      $(if blocked == 'yes')
+        <tr><td>status</td><td><span class="warn"><a href="$(link-advert)" target="hotspot_advert">Advertisement</a> required</span></td></tr>
+      $(elif refresh-timeout)
+        <tr><td>status refresh</td><td>$(refresh-timeout)</td></tr>
+      $(endif)
+      </table>
+      $(if login-by-mac != 'yes')
+      <input type="submit" value="Log off">
+      $(endif)
+    </form>
+  </div>
+</div>
+</body>
+</html>

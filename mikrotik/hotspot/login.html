@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<meta http-equiv="pragma" content="no-cache" />
+<meta http-equiv="expires" content="-1" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CJ NET hotspot</title>
+<style>
+body{font-family:Segoe UI,Arial,sans-serif;background:#f3efe7;color:#171717;text-align:center;padding:32px 16px}
+.card{background:#fff;border-radius:18px;max-width:340px;margin:0 auto;padding:24px;border:1px solid rgba(23,23,23,.08);box-shadow:0 16px 34px rgba(20,23,31,.08)}
+.logo{display:block;width:100%;max-width:170px;height:auto;margin:0 auto}
+h1{font-size:30px;line-height:1.02;margin:18px 0 0}
+p{color:#5f5b52;line-height:1.5}
+button{width:100%;padding:15px 16px;margin-top:12px;border:0;border-radius:14px;font-size:16px;font-weight:700}
+.send{background:#FFD400;color:#171717}
+.browse{background:#2b7cff;color:#fff}
+</style>
+</head>
+<body>
+
+$(if chap-id)
+<form name="sendin" action="$(link-login-only)" method="post">
+  <input type="hidden" name="username" />
+  <input type="hidden" name="password" />
+  <input type="hidden" name="dst" value="$(link-orig)" />
+  <input type="hidden" name="popup" value="true" />
+</form>
+
+<script src="/md5.js"></script>
+<script>
+function doLogin() {
+  document.sendin.username.value = document.login.username.value;
+  document.sendin.password.value = hexMD5('$(chap-id)' + document.login.password.value + '$(chap-challenge)');
+  document.sendin.submit();
+  return false;
+}
+</script>
+$(endif)
+
+<div class="card">
+  <img src="logo.svg" alt="CJ NET" class="logo" />
+  <h1>Choose a service</h1>
+  <p>Send a file for printing or continue to normal internet browsing.</p>
+
+  <form name="login" action="$(link-login-only)" method="post" $(if chap-id) onsubmit="return doLogin()" $(endif)>
+    <input type="hidden" name="username" />
+    <input type="hidden" name="password" />
+    <input type="hidden" name="dst" value="$(link-orig)" />
+    <input type="hidden" name="popup" value="true" />
+
+    <button type="submit" class="send"
+      onclick="
+        this.form.username.value='upload';
+        this.form.password.value='123';
+        this.form.dst.value='http://192.168.88.10:3000/';
+      ">
+      Send a File
+    </button>
+
+    <button type="submit" class="browse"
+      onclick="
+        this.form.username.value='browse';
+        this.form.password.value='123';
+        this.form.dst.value='http://neverssl.com';
+      ">
+      Browse Internet
+    </button>
+  </form>
+</div>
+
+</body>
+</html>
