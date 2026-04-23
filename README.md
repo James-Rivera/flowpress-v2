@@ -80,7 +80,7 @@ How it works:
 
 - the main shop PC runs FlowPress Local in the background
 - the app listens on the branch LAN, for example `http://192.168.88.10:3000`
-- the MikroTik `Send a File` hotspot button redirects to that LAN address
+- the MikroTik `Send a File` hotspot button links directly to that LAN address through Walled Garden access
 - the printed QR code points to the same LAN address
 - customer phones open the web UI from the branch PC
 - staff browse uploaded files from the shared SMB folder
@@ -104,12 +104,13 @@ tools\setup-local-host.bat "D:\CJNET\uploads"
 What it does:
 
 - installs Node.js LTS if missing
+- installs Caddy if missing
 - installs app dependencies
 - builds the production app
 - writes `UPLOADS_DIR` into `.env.local`
 - optionally creates the SMB share
-- creates a Windows Scheduled Task named `FlowPressLocal`
-- starts FlowPress Local automatically at Windows logon
+- creates Windows Scheduled Tasks for `FlowPressLocal` and `FlowPressLocalProxy`
+- starts FlowPress Local and the local `send.cjnet` proxy automatically at Windows logon
 
 This is the closest software-style setup path for the pilot right now.
 
@@ -122,6 +123,7 @@ That means:
 - the branch PC behaves like the local server
 - staff do not need to open PowerShell manually every day
 - if the PC reboots, the app comes back automatically after sign-in
+- `send.cjnet` can also come back automatically after sign-in through the local proxy task
 - future branches can reuse the same setup script with only path and IP changes
 
 ## Daily Operation (Non-Technical)
@@ -131,6 +133,7 @@ Normal days should require **zero commands**.
 - Turn on / restart the host PC (Server 3).
 - After Windows sign-in, FlowPress Local should start automatically in the background.
 - Customers use Wi-Fi + captive portal, then the FlowPress page opens.
+- If local DNS and Caddy are enabled, customers can also use `http://send.cjnet`.
 
 If FlowPress is not running for some reason, start it manually:
 
@@ -140,6 +143,12 @@ powershell -ExecutionPolicy Bypass -File .\tools\run-flowpress-local.ps1
 
 Do **not** run `setup-local-host.ps1` daily. That script is for installation, updates, and repairs.
 
+If the local domain proxy is not running for some reason, start it manually:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\run-send-cjnet.ps1
+```
+
 ## Updates (When Code Changes)
 
 Use this when:
@@ -148,7 +157,19 @@ Use this when:
 - you changed `.env.local`
 - you need to rebuild/re-sync production files
 
-Run:
+Open PowerShell and go to the project folder:
+
+```powershell
+cd C:\Users\cjnet\flowpress-local
+```
+
+If FlowPress Local is already running, stop the current `node` process first:
+
+```powershell
+Stop-Process -Name node -Force
+```
+
+Then rebuild and refresh the local host:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\setup-local-host.ps1
@@ -158,6 +179,7 @@ Important Windows note:
 
 - If a standalone host is currently running, `next build` can fail with `EBUSY` because Windows locks `.next\standalone`.
 - Fix: stop the running FlowPress `node` process first, then rerun setup.
+- `Stop-Process -Name node -Force` will also close any `npm run dev` session that is open on this PC.
 
 ## CSS / "Unstyled Page" Fix
 
@@ -189,15 +211,26 @@ MikroTik requirements for Server 3 during pilot:
 - DHCP lease is static/reserved for Server 3 on MikroTik (`192.168.88.249`)
 - Hotspot `IP Binding` for Server 3 is `bypassed` (no timeout, no upload/browse profiles)
 
-## MikroTik Hotspot Redirect
+## MikroTik Hotspot Access
 
-For the pilot, `Send a File` should redirect to:
+For the pilot, `Send a File` should open:
 
 ```text
-http://192.168.88.249:3000/
+http://send.cjnet
 ```
 
-Update the redirect in:
+Current local routing behind that friendly address:
+
+- `send.cjnet` -> port `80` on Server 3 through Caddy
+- Caddy -> reverse proxy to `127.0.0.1:3000`
+
+Do not rely on hotspot `dst` redirect for this upload path. Use:
+
+- a direct link in `mikrotik/hotspot/login.html`
+- a MikroTik Walled Garden rule that allows `192.168.88.249:80` before internet login
+- optionally keep `192.168.88.249:3000` allowed temporarily while migrating/testing
+
+Update the hotspot page in:
 
 - `mikrotik/hotspot/login.html`
 
@@ -256,10 +289,10 @@ Customer hotspot options should stay simple:
 - `Send a File`
 - `Browse Internet`
 
-`Send a File` should redirect to the local app root on the branch LAN, for example:
+`Send a File` should open the local app root on the branch LAN directly, for example:
 
 ```text
-http://192.168.88.10:3000/
+http://send.cjnet
 ```
 
 `Browse Internet` keeps the normal internet profile.
@@ -269,7 +302,9 @@ Example hotspot template lives in [mikrotik/hotspot/login.html](./mikrotik/hotsp
 Important:
 
 - reserve a stable DHCP address for the host PC in MikroTik
-- use that fixed address in both the QR code and hotspot redirect
+- use that fixed address in both the QR code and hotspot direct link
+- add a Walled Garden or Walled Garden IP rule for the FlowPress host on port `80`
+- allow TCP port `80` in Windows Firewall on the host PC
 - if the port changes, update both the QR code and the hotspot template
 
 ## QR Code
@@ -277,7 +312,7 @@ Important:
 Print a QR code that points to the same local address used by the hotspot:
 
 ```text
-http://192.168.88.10:3000/
+http://send.cjnet
 ```
 
 That gives customers one consistent entry point whether they scan the code or tap `Send a File`.

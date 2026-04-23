@@ -12,6 +12,8 @@ body{font-family:Segoe UI,Arial,sans-serif;background:#f3efe7;color:#171717;text
 .logo{display:block;width:100%;max-width:170px;height:auto;margin:0 auto}
 h1{font-size:30px;line-height:1.02;margin:18px 0 0}
 p{color:#5f5b52;line-height:1.5}
+.actions{margin-top:12px}
+.action{display:block;width:100%;padding:15px 16px;margin-top:12px;border:0;border-radius:14px;font-size:16px;font-weight:700;text-decoration:none;box-sizing:border-box}
 button{width:100%;padding:15px 16px;margin-top:12px;border:0;border-radius:14px;font-size:16px;font-weight:700}
 .send{background:#FFD400;color:#171717}
 .browse{background:#2b7cff;color:#fff}
@@ -43,20 +45,15 @@ $(endif)
   <h1>Choose a service</h1>
   <p>Send a file for printing or continue to normal internet browsing.</p>
 
+  <div class="actions">
+    <a href="http://192.168.88.249:3000/" class="action send">Send a File</a>
+  </div>
+
   <form name="login" action="$(link-login-only)" method="post" $(if chap-id) onsubmit="return doLogin()" $(endif)>
     <input type="hidden" name="username" />
     <input type="hidden" name="password" />
     <input type="hidden" name="dst" value="$(link-orig)" />
     <input type="hidden" name="popup" value="true" />
-
-    <button type="submit" class="send"
-      onclick="
-        this.form.username.value='upload';
-        this.form.password.value='123';
-        this.form.dst.value='http://192.168.88.10:3000/';
-      ">
-      Send a File
-    </button>
 
     <button type="submit" class="browse"
       onclick="

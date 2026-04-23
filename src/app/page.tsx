@@ -1,13 +1,5 @@
 import Image from "next/image";
 import Link from "next/link";
-import EmailActionLink from "@/app/_components/email-action-link";
-import MessengerActionLink from "@/app/_components/messenger-action-link";
-import {
-  buildGmailAndroidIntentComposeUrl,
-  buildGmailIOSAppComposeUrl,
-  buildGmailWebComposeUrl,
-  buildMailtoUrl,
-} from "@/lib/email-links";
 import { getGmailConfig, getMessengerLinks } from "@/lib/config";
 
 function UploadIcon() {
@@ -18,10 +10,6 @@ function UploadIcon() {
       <path d="M5 19h14" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
-}
-
-function PlatformIcon({ src, alt }: { src: string; alt: string }) {
-  return <Image src={src} alt={alt} width={20} height={20} className="h-5 w-5" priority />;
 }
 
 function Divider({ label }: { label: string }) {
@@ -37,17 +25,7 @@ function Divider({ label }: { label: string }) {
 export default function HomePage() {
   const messenger = getMessengerLinks();
   const gmail = getGmailConfig();
-
-  const body = [
-    "Hi CJ NET,",
-    "",
-    "Please print my file.",
-    "",
-    "Name:",
-    "Notes:",
-    "",
-    "Reminder: Please attach your file before sending.",
-  ].join("\n");
+  const messengerHandle = messenger.web.replace(/^https?:\/\/(www\.)?/i, "");
 
   return (
     <main className="app-shell flex items-center justify-center">
@@ -60,7 +38,7 @@ export default function HomePage() {
           </div>
 
           <p className="mt-6 text-center text-sm font-medium text-text-secondary">
-            Choose a platform to send your file
+            Upload works best on the shop Wi-Fi
           </p>
 
           <div className="mt-5">
@@ -73,38 +51,36 @@ export default function HomePage() {
             </Link>
           </div>
 
-          <Divider label="Alternative Platforms" />
-
-          <div className="mt-5 space-y-3">
-            <EmailActionLink
-              hrefWebDesktop={buildGmailWebComposeUrl({ to: gmail.to, subject: gmail.subject, body })}
-              hrefMailtoFallback={buildMailtoUrl({ to: gmail.to, subject: gmail.subject, body })}
-              hrefGmailAppIOS={buildGmailIOSAppComposeUrl({ to: gmail.to, subject: gmail.subject, body })}
-              hrefGmailAppAndroid={buildGmailAndroidIntentComposeUrl({ to: gmail.to, subject: gmail.subject, body })}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-surface-border bg-white px-4 py-4 text-sm font-bold tracking-[-0.01em] text-foreground shadow-[0_1px_0_rgba(0,0,0,0.08)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[rgba(244,212,0,0.18)]"
-            >
-              <PlatformIcon src="/icons/gmail.svg" alt="Gmail" />
-              <span>Gmail</span>
-              <span className="sr-only">(opens compose)</span>
-            </EmailActionLink>
-
-            <MessengerActionLink
-              hrefWeb={messenger.web}
-              hrefApp={messenger.app}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-platform-messenger px-4 py-4 text-sm font-bold tracking-[-0.01em] text-white shadow-[0_1px_0_rgba(0,0,0,0.14)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[rgba(24,119,242,0.25)]"
-            >
-              <span className="text-white" aria-hidden="true">
-                <PlatformIcon src="/icons/messenger.svg" alt="" />
-              </span>
-              <span>Messenger</span>
-            </MessengerActionLink>
-          </div>
+          <Divider label="Need Internet Instead?" />
 
           <div className="mt-5 rounded-2xl border border-[rgba(23,23,23,0.06)] bg-surface-muted px-4 py-4">
-            <p className="text-sm font-semibold text-foreground">Best inside the shop</p>
+            <p className="text-sm font-semibold text-foreground">Use Browse Internet for apps</p>
             <p className="mt-2 text-sm leading-6 text-text-secondary">
-              Upload works best on the shop Wi-Fi. Messenger and Gmail may need internet. If they do not open, use
-              Upload instead or switch to Browse Internet.
+              Gmail and Messenger can close the Wi-Fi sign-in screen. If you want to use those apps instead, go back
+              and choose Browse Internet on the hotspot page.
+            </p>
+          </div>
+
+          <div className="mt-4 rounded-2xl border border-surface-border bg-white px-4 py-4 shadow-[0_1px_0_rgba(0,0,0,0.05)]">
+            <p className="text-sm font-semibold text-foreground">Shop contact details</p>
+            <p className="mt-2 text-sm leading-6 text-text-secondary">
+              You can also ask staff to open these for you if you prefer sending through your own apps.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <div className="rounded-xl border border-[rgba(23,23,23,0.08)] bg-[rgba(255,248,230,0.45)] px-3 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-secondary">Messenger</p>
+                <p className="mt-1 break-all text-sm font-semibold text-foreground">{messengerHandle}</p>
+              </div>
+
+              <div className="rounded-xl border border-[rgba(23,23,23,0.08)] bg-[rgba(255,248,230,0.45)] px-3 py-3">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-text-secondary">Email</p>
+                <p className="mt-1 break-all text-sm font-semibold text-foreground">{gmail.to}</p>
+              </div>
+            </div>
+
+            <p className="mt-4 text-xs leading-5 text-text-secondary">
+              For the fastest in-shop sending, use Upload Files &gt; Shop above.
             </p>
           </div>
         </article>
