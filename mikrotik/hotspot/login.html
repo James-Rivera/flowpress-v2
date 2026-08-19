@@ -12,12 +12,9 @@ body{font-family:Segoe UI,Arial,sans-serif;background:#f3efe7;color:#171717;text
 .logo{display:block;width:100%;max-width:170px;height:auto;margin:0 auto}
 h1{font-size:30px;line-height:1.02;margin:18px 0 0}
 p{color:#5f5b52;line-height:1.5}
-.actions{margin-top:12px}
-.action{display:block;width:100%;padding:15px 16px;margin-top:12px;border:0;border-radius:14px;font-size:16px;font-weight:700;text-decoration:none;box-sizing:border-box}
 button{width:100%;padding:15px 16px;margin-top:12px;border:0;border-radius:14px;font-size:16px;font-weight:700}
-.send{background:#fff4b3;color:#171717;border:1px solid #e5bf00}
 .connect{background:#FFD400;color:#171717}
-.hint{font-size:13px;margin:8px 0 0}
+.send{background:#2b7cff;color:#fff}
 </style>
 </head>
 <body>
@@ -27,7 +24,7 @@ $(if chap-id)
   <input type="hidden" name="username" />
   <input type="hidden" name="password" />
   <input type="hidden" name="dst" value="$(link-orig)" />
-  <input type="hidden" name="popup" value="true" />
+  <input type="hidden" name="popup" value="false" />
 </form>
 
 <script src="/md5.js"></script>
@@ -35,6 +32,8 @@ $(if chap-id)
 function doLogin() {
   document.sendin.username.value = document.login.username.value;
   document.sendin.password.value = hexMD5('$(chap-id)' + document.login.password.value + '$(chap-challenge)');
+  document.sendin.dst.value = document.login.dst.value;
+  document.sendin.popup.value = document.login.popup.value;
   document.sendin.submit();
   return false;
 }
@@ -43,29 +42,35 @@ $(endif)
 
 <div class="card">
   <img src="logo.svg" alt="CJ NET" class="logo" />
-  <h1>Choose an option</h1>
+  <h1>Choose a option</h1>
   <p>Connect to the internet, or send files directly to CJ NET without using mobile data.</p>
 
   <form name="login" action="$(link-login-only)" method="post" $(if chap-id) onsubmit="return doLogin()" $(endif)>
     <input type="hidden" name="username" />
     <input type="hidden" name="password" />
     <input type="hidden" name="dst" value="$(link-orig)" />
-    <input type="hidden" name="popup" value="true" />
+    <input type="hidden" name="popup" value="false" />
 
     <button type="submit" class="connect"
       onclick="
         this.form.username.value='browse';
         this.form.password.value='123';
         this.form.dst.value='http://neverssl.com';
+        this.form.popup.value='false';
       ">
-      CLICK TO CONNECT
+      Click to Connect
+    </button>
+
+    <button type="submit" class="send"
+      onclick="
+        this.form.username.value='upload';
+        this.form.password.value='123';
+        this.form.dst.value='http://192.168.88.249:3000/';
+        this.form.popup.value='false';
+      ">
+      Send a File
     </button>
   </form>
-
-  <div class="actions">
-    <a href="http://send.cjnet/" class="action send">SEND FILES</a>
-    <p class="hint">Opens the local upload page. No internet connection required.</p>
-  </div>
 </div>
 
 </body>
