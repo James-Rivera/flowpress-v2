@@ -38,7 +38,7 @@ export default function HomePage() {
           </div>
 
           <p className="mt-6 text-center text-sm font-medium text-text-secondary">
-            Upload works best on the shop Wi-Fi
+            Send files directly to the CJ NET shop PC
           </p>
 
           <div className="mt-5">
@@ -47,17 +47,17 @@ export default function HomePage() {
               className="flex w-full items-center justify-center gap-3 rounded-2xl bg-brand-yellow px-4 py-4 text-sm font-bold tracking-[-0.01em] text-foreground shadow-[0_1px_0_rgba(0,0,0,0.10)] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[rgba(244,212,0,0.30)]"
             >
               <UploadIcon />
-              <span>Upload Files &gt; Shop</span>
+              <span>SEND FILES</span>
             </Link>
           </div>
 
-          <Divider label="Need Internet Instead?" />
+          <Divider label="OTHER SENDING OPTIONS" />
 
           <div className="mt-5 rounded-2xl border border-[rgba(23,23,23,0.06)] bg-surface-muted px-4 py-4">
-            <p className="text-sm font-semibold text-foreground">Use Browse Internet for apps</p>
+            <p className="text-sm font-semibold text-foreground">Prefer Messenger or Gmail?</p>
             <p className="mt-2 text-sm leading-6 text-text-secondary">
-              Gmail and Messenger can close the Wi-Fi sign-in screen. If you want to use those apps instead, go back
-              and choose Browse Internet on the hotspot page.
+              If you are on CJNET SEND WI-FI, return to the connection page and tap CLICK TO CONNECT before opening
+              Messenger or Gmail.
             </p>
           </div>
 
@@ -80,7 +80,7 @@ export default function HomePage() {
             </div>
 
             <p className="mt-4 text-xs leading-5 text-text-secondary">
-              For the fastest in-shop sending, use Upload Files &gt; Shop above.
+              For the fastest in-shop sending, use SEND FILES above.
             </p>
           </div>
         </article>

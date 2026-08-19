@@ -1,10 +1,11 @@
 import { createWriteStream } from "node:fs";
-import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdir, readFile, readdir, rename, rm, stat, statfs, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ReadableStream as NodeReadableStream } from "node:stream/web";
-import { getMetadataDir, getUploadsRootDir } from "@/lib/config";
+import { getMetadataDir, getUploadOperationsConfig, getUploadsRootDir } from "@/lib/config";
 
 export type StoredUpload = {
   customerName: string;
@@ -23,7 +24,8 @@ function sanitizePathSegment(value: string, fallback: string) {
     .trim()
     .replace(/[. ]+$/g, "");
 
-  return cleaned || fallback;
+  const safeValue = cleaned || fallback;
+  return /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(safeValue) ? `_${safeValue}` : safeValue;
 }
 
 function sanitizeCustomerFolder(name: string) {
@@ -51,6 +53,32 @@ async function writeWebFileToDisk(file: File, targetPath: string) {
     Readable.fromWeb(file.stream() as unknown as NodeReadableStream<Uint8Array>),
     createWriteStream(targetPath, { flags: "wx" })
   );
+}
+
+export async function getStorageCapacity() {
+  const uploadsRoot = getUploadsRootDir();
+  await mkdir(uploadsRoot, { recursive: true });
+  const capacity = await statfs(uploadsRoot);
+  const freeBytes = capacity.bavail * capacity.bsize;
+  const totalBytes = capacity.blocks * capacity.bsize;
+
+  return {
+    freeBytes,
+    totalBytes,
+    usedPercent: totalBytes > 0 ? ((totalBytes - freeBytes) / totalBytes) * 100 : 0,
+  };
+}
+
+export async function ensureStorageCapacity(incomingBytes: number) {
+  const { minimumFreeSpaceMb, maxDiskUsagePercent } = getUploadOperationsConfig();
+  const capacity = await getStorageCapacity();
+  const reserveBytes = minimumFreeSpaceMb * 1024 * 1024;
+
+  if (capacity.usedPercent >= maxDiskUsagePercent || capacity.freeBytes - incomingBytes < reserveBytes) {
+    return "The shop storage is nearly full. Please ask staff for help.";
+  }
+
+  return null;
 }
 
 async function createUniqueFilePath(directory: string, originalFilename: string) {
@@ -89,36 +117,53 @@ async function writeManifest(entries: StoredUpload[]) {
   };
 
   const stamp = Date.now();
-  await writeFile(path.join(getMetadataDir(), `${stamp}.json`), JSON.stringify(manifest, null, 2), "utf8");
+  await writeFile(path.join(getMetadataDir(), `${stamp}-${randomUUID()}.json`), JSON.stringify(manifest, null, 2), "utf8");
 }
 
 export async function saveUploadedFiles(customerName: string, files: File[]) {
   const uploadsRoot = getUploadsRootDir();
   const customerFolder = sanitizeCustomerFolder(customerName);
   const customerDir = path.join(uploadsRoot, customerFolder);
+  const temporaryDir = path.join(uploadsRoot, ".incoming", `${Date.now()}-${randomUUID()}`);
 
-  await mkdir(customerDir, { recursive: true });
+  await mkdir(temporaryDir, { recursive: true });
 
   const savedEntries: StoredUpload[] = [];
 
-  for (const file of files) {
-    const originalFilename = sanitizeFilename(file.name);
-    const { filename, targetPath } = await createUniqueFilePath(customerDir, originalFilename);
-    await writeWebFileToDisk(file, targetPath);
+  try {
+    const stagedFiles: Array<{ originalFilename: string; stagedPath: string }> = [];
 
-    savedEntries.push({
-      customerName,
-      customerFolder,
-      originalFilename,
-      savedFilename: filename,
-      absolutePath: targetPath,
-      relativePath: path.join(customerFolder, filename),
-    });
+    for (const [index, file] of files.entries()) {
+      const originalFilename = sanitizeFilename(file.name);
+      const stagedPath = path.join(temporaryDir, `${index}.upload`);
+      await writeWebFileToDisk(file, stagedPath);
+      stagedFiles.push({ originalFilename, stagedPath });
+    }
+
+    await mkdir(customerDir, { recursive: true });
+
+    for (const stagedFile of stagedFiles) {
+      const { filename, targetPath } = await createUniqueFilePath(customerDir, stagedFile.originalFilename);
+      await rename(stagedFile.stagedPath, targetPath);
+
+      savedEntries.push({
+        customerName,
+        customerFolder,
+        originalFilename: stagedFile.originalFilename,
+        savedFilename: filename,
+        absolutePath: targetPath,
+        relativePath: path.join(customerFolder, filename),
+      });
+    }
+
+    await writeManifest(savedEntries);
+    return savedEntries;
+  } catch (error) {
+    await Promise.all(savedEntries.map((entry) => rm(entry.absolutePath, { force: true })));
+    throw error;
+  } finally {
+    await rm(temporaryDir, { recursive: true, force: true });
   }
-
-  await writeManifest(savedEntries);
-
-  return savedEntries;
 }
 
 export async function listRecentUploads(limit = 10) {

@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
-import { getClientUploadLimits } from "@/lib/public-config";
+import { getClientUploadLimits, getPublicApiUrl } from "@/lib/public-config";
 import { validateUploadFiles } from "@/lib/upload-rules";
 
 type SubmitState = {
@@ -103,7 +103,7 @@ export default function UploadPage() {
     }
 
     try {
-      const response = await fetch("/api/upload", {
+      const response = await fetch(getPublicApiUrl("/api/upload"), {
         method: "POST",
         body: formData,
       });
