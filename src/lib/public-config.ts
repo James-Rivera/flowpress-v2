@@ -3,6 +3,12 @@ function getPositiveInt(value: string | undefined, fallback: number) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+export function getPublicApiUrl(pathname: string) {
+  const normalizedPath = pathname.startsWith("/") ? pathname : `/${pathname}`;
+  const backendBaseUrl = (process.env.NEXT_PUBLIC_BACKEND_BASE_URL ?? "").trim().replace(/\/+$/, "");
+  return backendBaseUrl ? `${backendBaseUrl}${normalizedPath}` : normalizedPath;
+}
+
 export function getClientUploadLimits() {
   return {
     maxFileCount: getPositiveInt(process.env.NEXT_PUBLIC_UPLOAD_MAX_FILE_COUNT, 20),

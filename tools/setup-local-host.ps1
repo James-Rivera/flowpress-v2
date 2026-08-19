@@ -1,9 +1,11 @@
 param(
-  [string]$UploadsPath = "C:\flowpress-local\uploads",
+  [string]$UploadsPath = "C:\FlowPressData\uploads",
   [int]$Port = 3000,
+  [string]$PublicFrontendOrigin = "",
   [string]$ShareName = "FlowPressUploads",
   [string]$TaskName = "FlowPressLocal",
   [string]$CaddyTaskName = "FlowPressLocalProxy",
+  [string]$CleanupTaskName = "FlowPressLocalCleanup",
   [switch]$CreateSmbShare
 )
 
@@ -185,7 +187,16 @@ $envFile = Join-Path $projectRoot ".env.local"
 $exampleEnvFile = Join-Path $projectRoot ".env.example"
 $runScript = Join-Path $projectRoot "tools\run-flowpress-local.ps1"
 $caddyRunScript = Join-Path $projectRoot "tools\run-send-cjnet.ps1"
+$cleanupScript = Join-Path $projectRoot "scripts\cleanup-uploads.mjs"
 $startupRoot = Join-Path $env:LOCALAPPDATA "FlowPressLocal"
+
+$resolvedUploadsPath = [IO.Path]::GetFullPath($UploadsPath)
+$resolvedProjectRoot = [IO.Path]::GetFullPath($projectRoot).TrimEnd('\')
+if ($resolvedUploadsPath.TrimEnd('\').Equals($resolvedProjectRoot, [StringComparison]::OrdinalIgnoreCase) -or
+    $resolvedUploadsPath.StartsWith("$resolvedProjectRoot\", [StringComparison]::OrdinalIgnoreCase)) {
+  throw "UploadsPath must be outside the FlowPress application directory."
+}
+$UploadsPath = $resolvedUploadsPath
 
 New-Item -ItemType Directory -Force -Path $UploadsPath | Out-Null
 New-Item -ItemType Directory -Force -Path $startupRoot | Out-Null
@@ -195,6 +206,10 @@ if (-not (Test-Path -LiteralPath $envFile)) {
 }
 
 Set-EnvValue -FilePath $envFile -Name "UPLOADS_DIR" -Value $UploadsPath
+Set-EnvValue -FilePath $envFile -Name "APP_ROLE" -Value "backend"
+if ($PublicFrontendOrigin.Trim()) {
+  Set-EnvValue -FilePath $envFile -Name "ALLOWED_ORIGINS" -Value $PublicFrontendOrigin.Trim().TrimEnd('/')
+}
 
 $nodeTools = Ensure-NodeInstalled
 $caddyPath = Ensure-CaddyInstalled
@@ -215,12 +230,12 @@ if (Test-IsAdministrator) {
   Write-Host "Creating or updating firewall rule for port $Port..."
   $ruleName = "FlowPress Local $Port"
   netsh advfirewall firewall delete rule name="$ruleName" | Out-Null
-  netsh advfirewall firewall add rule name="$ruleName" dir=in action=allow protocol=TCP localport=$Port | Out-Null
+  netsh advfirewall firewall add rule name="$ruleName" dir=in action=allow protocol=TCP localport=$Port remoteip=localsubnet | Out-Null
 
   Write-Host "Creating or updating firewall rule for port 80..."
   $httpRuleName = "FlowPress Local HTTP"
   netsh advfirewall firewall delete rule name="$httpRuleName" | Out-Null
-  netsh advfirewall firewall add rule name="$httpRuleName" dir=in action=allow protocol=TCP localport=80 | Out-Null
+  netsh advfirewall firewall add rule name="$httpRuleName" dir=in action=allow protocol=TCP localport=80 remoteip=localsubnet | Out-Null
 
   if ($CreateSmbShare) {
     $shareScript = Join-Path $projectRoot "tools\setup-local-share.ps1"
@@ -270,6 +285,16 @@ try {
   )
 }
 
+Write-Host "Creating or updating daily cleanup task $CleanupTaskName..."
+$cleanupAction = New-ScheduledTaskAction -Execute $nodeTools.Node -Argument "`"$cleanupScript`"" -WorkingDirectory $projectRoot
+$cleanupTrigger = New-ScheduledTaskTrigger -Daily -At "2:00 AM"
+
+try {
+  Register-ScheduledTask -TaskName $CleanupTaskName -Action $cleanupAction -Trigger $cleanupTrigger -Settings $settings -Principal $principal -Force | Out-Null
+} catch {
+  Write-Warning "Cleanup task registration failed. Run npm run cleanup:uploads manually or register the task later."
+}
+
 Write-Host "Creating or updating scheduled task $CaddyTaskName..."
 $caddyAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $caddyTaskArgument -WorkingDirectory $projectRoot
 
@@ -293,6 +318,7 @@ Write-Host "Uploads path: $UploadsPath"
 Write-Host "Port: $Port"
 Write-Host "Task name: $TaskName"
 Write-Host "Proxy task name: $CaddyTaskName"
+Write-Host "Cleanup task name: $CleanupTaskName"
 Write-Host "Open on this PC: http://127.0.0.1:$Port/"
 Write-Host "Open on phones: http://<branch-pc-ip>:$Port/"
 if ($startupFallbackPath) {

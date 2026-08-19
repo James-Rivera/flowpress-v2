@@ -15,8 +15,9 @@ p{color:#5f5b52;line-height:1.5}
 .actions{margin-top:12px}
 .action{display:block;width:100%;padding:15px 16px;margin-top:12px;border:0;border-radius:14px;font-size:16px;font-weight:700;text-decoration:none;box-sizing:border-box}
 button{width:100%;padding:15px 16px;margin-top:12px;border:0;border-radius:14px;font-size:16px;font-weight:700}
-.send{background:#FFD400;color:#171717}
-.browse{background:#2b7cff;color:#fff}
+.send{background:#fff4b3;color:#171717;border:1px solid #e5bf00}
+.connect{background:#FFD400;color:#171717}
+.hint{font-size:13px;margin:8px 0 0}
 </style>
 </head>
 <body>
@@ -42,12 +43,8 @@ $(endif)
 
 <div class="card">
   <img src="logo.svg" alt="CJ NET" class="logo" />
-  <h1>Choose a service</h1>
-  <p>Send a file for printing or continue to normal internet browsing.</p>
-
-  <div class="actions">
-    <a href="http://192.168.88.249:3000/" class="action send">Send a File</a>
-  </div>
+  <h1>Choose an option</h1>
+  <p>Connect to the internet, or send files directly to CJ NET without using mobile data.</p>
 
   <form name="login" action="$(link-login-only)" method="post" $(if chap-id) onsubmit="return doLogin()" $(endif)>
     <input type="hidden" name="username" />
@@ -55,15 +52,20 @@ $(endif)
     <input type="hidden" name="dst" value="$(link-orig)" />
     <input type="hidden" name="popup" value="true" />
 
-    <button type="submit" class="browse"
+    <button type="submit" class="connect"
       onclick="
         this.form.username.value='browse';
         this.form.password.value='123';
         this.form.dst.value='http://neverssl.com';
       ">
-      Browse Internet
+      CLICK TO CONNECT
     </button>
   </form>
+
+  <div class="actions">
+    <a href="http://send.cjnet/" class="action send">SEND FILES</a>
+    <p class="hint">Opens the local upload page. No internet connection required.</p>
+  </div>
 </div>
 
 </body>
