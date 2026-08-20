@@ -71,12 +71,20 @@ tools\setup-local-host.bat "D:\FlowPressData\uploads" "https://upload.example.co
 
 The setup performs these actions:
 
-- installs Node.js LTS and Caddy when missing
+- installs Node.js LTS and, when local sending is enabled, Caddy
 - builds the standalone Next.js application
 - configures the backend role and external upload directory
 - permits ports 80 and 3000 from local subnets only
 - starts FlowPress and the `send.cjnet` proxy at Windows logon
 - schedules upload cleanup every day at 2:00 AM
+
+For a public-only shop with no `send.cjnet` or customer Wi-Fi upload route, add `public-only` as the fourth argument:
+
+```bat
+tools\setup-local-host.bat "D:\FlowPressData\uploads" "https://upload.example.com" "CJ NET - Shop Name" "public-only"
+```
+
+Public-only mode skips Caddy, the port 80 firewall rule, and the local proxy task.
 
 The upload directory must be outside the Git repository. Production startup rejects missing, relative, or in-repository paths.
 

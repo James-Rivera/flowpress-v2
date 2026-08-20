@@ -1,114 +1,99 @@
-# Second Shop Deployment
+# Sto. Tomas and Tanauan Deployment
 
-Use the same `main` branch for every physical CJ NET shop. A separate Git branch would eventually drift and is not needed because FlowPress already supports per-deployment environment settings.
+FlowPress uses the same `main` branch for every physical CJ NET shop. Each upgraded shop receives its own environment settings, backend PC, storage directory, and public upload route. Do not maintain separate Git branches for the shops.
 
-Each shop must have its own backend PC, upload directory, public backend route, frontend deployment settings, and exact CORS allowlist. This prevents a customer at one shop from accidentally sending files to another shop.
+## Current Rollout
 
-## Recommended Names
-
-Choose a short location slug such as `downtown` or `north`. Replace the examples below with the real shop name and slug.
-
-| Purpose | Shop 1 | Shop 2 example |
+| Shop | Status | Customer sending |
 | --- | --- | --- |
-| Customer frontend | `https://cjnet.cloudavera.tech` | `https://north.cjnet.cloudavera.tech` |
-| Public upload API | `https://upload-api.cloudavera.tech` | `https://upload-api-north.cloudavera.tech` |
-| Local customer URL | `http://send.cjnet` | `http://send.cjnet` |
-| Customer-facing label | Current shop name | `CJ NET - North Branch` |
+| Sto. Tomas | Current FlowPress deployment | Public internet only |
+| Tanauan | Not yet upgraded | Keep its existing system unchanged |
 
-The second public upload API hostname is required because it must route to the second shop PC. A second custom frontend domain is strongly recommended but not technically required: Vercel provides a generated URL that can be used during testing. Keep `send.cjnet` at both shops because each name resolves only inside its own local network.
+Sto. Tomas does not use `send.cjnet`, a MikroTik upload portal, Caddy, or local customer Wi-Fi sending. Its FlowPress PC still runs the backend on `127.0.0.1:3000` so the secure public tunnel can save uploads directly to that PC.
 
-## 1. Prepare the Second Shop PC
+## Sto. Tomas Domains
 
-Clone the current production code from `main` into the second shop PC:
+No additional domain is required when the existing domains already route to the Sto. Tomas deployment:
 
-```powershell
-git clone --branch main --single-branch https://github.com/James-Rivera/flowpress-v2.git C:\FlowPress\app
-cd C:\FlowPress\app
-```
+| Purpose | Domain |
+| --- | --- |
+| Customer frontend | `https://cjnet.cloudavera.tech` |
+| Public upload API | `https://upload-api.cloudavera.tech` |
 
-Run the installer from an Administrator terminal. Pass the second shop's customer-facing frontend origin and visible shop name:
+Keep those domains for Sto. Tomas. When Tanauan is upgraded, give it separate routes, for example `https://tanauan.cjnet.cloudavera.tech` and `https://upload-api-tanauan.cloudavera.tech`, so files cannot be sent to the wrong shop.
 
-```bat
-tools\setup-local-host.bat "D:\FlowPressData\uploads" "https://north.cjnet.cloudavera.tech" "CJ NET - North Branch"
-```
+## Sto. Tomas Environment
 
-Use `C:\FlowPressData\uploads` when the data drive is `C:`. Confirm that the resulting `.env.local` contains:
-
-```dotenv
-APP_ROLE=backend
-NEXT_PUBLIC_SHOP_NAME=CJ NET - North Branch
-UPLOADS_DIR=D:\FlowPressData\uploads
-NEXT_PUBLIC_BACKEND_BASE_URL=
-ALLOWED_ORIGINS=https://north.cjnet.cloudavera.tech
-```
-
-Do not copy Shop 1 customer uploads, `.env.local`, tunnel credentials, scheduled-task credentials, or MikroTik backups onto the Shop 2 PC.
-
-## 2. Configure the Second Public Backend
-
-Create a dedicated secure tunnel or reverse-proxy route:
-
-```text
-https://upload-api-north.cloudavera.tech
-  -> Shop 2 secure tunnel
-  -> http://127.0.0.1:3000
-```
-
-Do not expose TCP port 3000 directly to the internet. Preserve the real client IP and forwarded host/protocol headers, and allow request bodies up to the configured public upload limit.
-
-Verify the route:
-
-```powershell
-Invoke-RestMethod https://upload-api-north.cloudavera.tech/api/health
-```
-
-The response must report `role` as `backend` and `storage` as `available` on the Shop 2 PC.
-
-## 3. Create the Second Vercel Frontend
-
-Create a second Vercel project from the same GitHub repository and deploy the `main` branch. Set these Production environment variables:
+The current Vercel project should use:
 
 ```dotenv
 APP_ROLE=frontend
-NEXT_PUBLIC_SHOP_NAME=CJ NET - North Branch
-NEXT_PUBLIC_BACKEND_BASE_URL=https://upload-api-north.cloudavera.tech
+NEXT_PUBLIC_SHOP_NAME=CJ NET - Sto. Tomas Branch
+NEXT_PUBLIC_BACKEND_BASE_URL=https://upload-api.cloudavera.tech
 NEXT_PUBLIC_UPLOAD_MAX_FILE_COUNT=20
 NEXT_PUBLIC_UPLOAD_MAX_FILE_SIZE_MB=100
 NEXT_PUBLIC_UPLOAD_MAX_BATCH_SIZE_MB=100
 ```
 
-Do not set `UPLOADS_DIR` on Vercel. Use the generated Vercel URL for the first test. If that preview origin needs to upload, temporarily add its exact origin to the Shop 2 backend's comma-separated `ALLOWED_ORIGINS`; never use `*`.
+The Sto. Tomas backend PC should use:
 
-After testing, attach the stable customer domain, for example:
-
-```text
-north.cjnet.cloudavera.tech
+```dotenv
+APP_ROLE=backend
+NEXT_PUBLIC_SHOP_NAME=CJ NET - Sto. Tomas Branch
+UPLOADS_DIR=D:\FlowPressData\uploads
+NEXT_PUBLIC_BACKEND_BASE_URL=
+ALLOWED_ORIGINS=https://cjnet.cloudavera.tech
 ```
 
-Then keep only the required stable origins in the Shop 2 backend allowlist and restart FlowPress so the environment change takes effect.
+Use `C:\FlowPressData\uploads` when the data drive is `C:`. If the existing backend URL and allowed origin already match these values, only `NEXT_PUBLIC_SHOP_NAME` needs to be added. Restart and rebuild FlowPress after changing a `NEXT_PUBLIC_` value because it is compiled into the customer interface.
 
-## 4. Configure the Second Local Network
+## Public-Only Sto. Tomas Setup
 
-Repeat the MikroTik preparation and acceptance process at Shop 2 using that shop's actual router objects, permanent PC MAC address, and reserved LAN address. Do not reuse Shop 1 MAC addresses, IP reservations, exported configuration, or tunnel credentials.
+For a new or rebuilt Sto. Tomas PC, clone `main` and run the installer from an Administrator terminal with `public-only` as the fourth argument:
 
-It is safe for both shops to use:
-
-```text
-http://send.cjnet
+```powershell
+git clone --branch main --single-branch https://github.com/James-Rivera/flowpress-v2.git C:\FlowPress\app
+cd C:\FlowPress\app
+tools\setup-local-host.bat "D:\FlowPressData\uploads" "https://cjnet.cloudavera.tech" "CJ NET - Sto. Tomas Branch" "public-only"
 ```
 
-because each MikroTik DNS entry points the name to its own local FlowPress PC.
+Public-only mode:
 
-## 5. Acceptance Test
+- installs and starts the FlowPress backend
+- configures the Sto. Tomas shop label and exact CORS origin
+- schedules upload cleanup
+- skips Caddy installation
+- skips the port 80 firewall rule
+- skips the `send.cjnet` local proxy task
 
-Complete every check before giving the Shop 2 URL to customers:
+Connect the Sto. Tomas secure tunnel to:
 
-1. The upload page visibly shows the correct Shop 2 name.
-2. A synthetic public upload reaches only the Shop 2 customer folder.
-3. A synthetic `send.cjnet` upload reaches the same Shop 2 folder with mobile data disabled.
-4. Shop 1 still uploads only to the Shop 1 PC.
-5. The Shop 2 app and local proxy return after a PC restart and Windows sign-in.
-6. An origin not listed in Shop 2 `ALLOWED_ORIGINS` receives a CORS rejection.
+```text
+https://upload-api.cloudavera.tech
+  -> Sto. Tomas secure tunnel
+  -> http://127.0.0.1:3000
+```
+
+Do not expose TCP port 3000 directly to the internet.
+
+## Sto. Tomas Acceptance Test
+
+1. `https://cjnet.cloudavera.tech/upload` visibly shows `CJ NET - Sto. Tomas Branch`.
+2. `https://upload-api.cloudavera.tech/api/health` reports `backend` and available storage.
+3. A synthetic public upload reaches only the Sto. Tomas customer folder.
+4. FlowPress returns after the Sto. Tomas PC restarts and the user signs in.
+5. An origin not listed in `ALLOWED_ORIGINS` receives a CORS rejection.
+6. No `send.cjnet` or customer Wi-Fi upload route is advertised for Sto. Tomas.
+
+## Tanauan Later
+
+Do not change Tanauan's current environment, router, portal, storage, or public routes during the Sto. Tomas rollout. When the Tanauan upgrade starts:
+
+1. Prepare its new PC and storage independently.
+2. Decide whether Tanauan needs public-only or public-and-local sending.
+3. Create a dedicated Tanauan backend hostname and customer frontend domain.
+4. Set `NEXT_PUBLIC_SHOP_NAME=CJ NET - Tanauan Branch` on its frontend and backend.
+5. Test both shops to confirm each upload reaches only its intended PC.
 
 ## Upload Timing Diagnostics
 
@@ -125,4 +110,4 @@ Use the largest duration to locate a slowdown:
 - `capacityMs`: storage availability and disk-capacity checks
 - `saveMs`: Windows disk write, rename, metadata write, and possible antivirus scanning
 
-The browser reaches 100% before these server-side steps finish, so the final UI phase can remain visible briefly even for a small file.
+The browser reaches 100% before these server-side steps finish, so the final checking-and-saving phase can remain visible briefly even for a small file.

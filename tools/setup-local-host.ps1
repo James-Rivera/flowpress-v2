@@ -7,7 +7,8 @@ param(
   [string]$TaskName = "FlowPressLocal",
   [string]$CaddyTaskName = "FlowPressLocalProxy",
   [string]$CleanupTaskName = "FlowPressLocalCleanup",
-  [switch]$CreateSmbShare
+  [switch]$CreateSmbShare,
+  [switch]$SkipLocalSending
 )
 
 $ErrorActionPreference = "Stop"
@@ -216,10 +217,14 @@ if ($PublicFrontendOrigin.Trim()) {
 }
 
 $nodeTools = Ensure-NodeInstalled
-$caddyPath = Ensure-CaddyInstalled
 $nodeDir = Split-Path -Parent $nodeTools.Node
-$caddyDir = Split-Path -Parent $caddyPath
-$env:Path = "$nodeDir;$caddyDir;$env:Path"
+$env:Path = "$nodeDir;$env:Path"
+
+if (-not $SkipLocalSending) {
+  $caddyPath = Ensure-CaddyInstalled
+  $caddyDir = Split-Path -Parent $caddyPath
+  $env:Path = "$caddyDir;$env:Path"
+}
 
 Write-Host "Installing dependencies..."
 & $nodeTools.Npm install
@@ -236,10 +241,12 @@ if (Test-IsAdministrator) {
   netsh advfirewall firewall delete rule name="$ruleName" | Out-Null
   netsh advfirewall firewall add rule name="$ruleName" dir=in action=allow protocol=TCP localport=$Port remoteip=localsubnet | Out-Null
 
-  Write-Host "Creating or updating firewall rule for port 80..."
-  $httpRuleName = "FlowPress Local HTTP"
-  netsh advfirewall firewall delete rule name="$httpRuleName" | Out-Null
-  netsh advfirewall firewall add rule name="$httpRuleName" dir=in action=allow protocol=TCP localport=80 remoteip=localsubnet | Out-Null
+  if (-not $SkipLocalSending) {
+    Write-Host "Creating or updating firewall rule for port 80..."
+    $httpRuleName = "FlowPress Local HTTP"
+    netsh advfirewall firewall delete rule name="$httpRuleName" | Out-Null
+    netsh advfirewall firewall add rule name="$httpRuleName" dir=in action=allow protocol=TCP localport=80 remoteip=localsubnet | Out-Null
+  }
 
   if ($CreateSmbShare) {
     $shareScript = Join-Path $projectRoot "tools\setup-local-share.ps1"
@@ -256,13 +263,6 @@ $taskArgument = @(
   "-ExecutionPolicy", "Bypass",
   "-File", "`"$runScript`"",
   "-Port", $Port
-) -join " "
-
-$caddyTaskArgument = @(
-  "-NoProfile",
-  "-WindowStyle", "Hidden",
-  "-ExecutionPolicy", "Bypass",
-  "-File", "`"$caddyRunScript`""
 ) -join " "
 
 Write-Host "Creating or updating scheduled task $TaskName..."
@@ -299,35 +299,48 @@ try {
   Write-Warning "Cleanup task registration failed. Run npm run cleanup:uploads manually or register the task later."
 }
 
-Write-Host "Creating or updating scheduled task $CaddyTaskName..."
-$caddyAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $caddyTaskArgument -WorkingDirectory $projectRoot
-
-try {
-  Register-ScheduledTask -TaskName $CaddyTaskName -Action $caddyAction -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
-  Write-Host "Starting $CaddyTaskName now..."
-  schtasks /Run /TN $CaddyTaskName | Out-Null
-} catch {
-  Write-Warning "Scheduled task registration for Caddy failed. Falling back to Startup folder launch."
-  $caddyStartupFallbackPath = Install-StartupPowerShellFallback -TaskName $CaddyTaskName -ProjectRoot $projectRoot -RunScript $caddyRunScript
-  Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @(
+if (-not $SkipLocalSending) {
+  $caddyTaskArgument = @(
     "-NoProfile",
+    "-WindowStyle", "Hidden",
     "-ExecutionPolicy", "Bypass",
-    "-File", $caddyRunScript
-  )
+    "-File", "`"$caddyRunScript`""
+  ) -join " "
+
+  Write-Host "Creating or updating scheduled task $CaddyTaskName..."
+  $caddyAction = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $caddyTaskArgument -WorkingDirectory $projectRoot
+
+  try {
+    Register-ScheduledTask -TaskName $CaddyTaskName -Action $caddyAction -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
+    Write-Host "Starting $CaddyTaskName now..."
+    schtasks /Run /TN $CaddyTaskName | Out-Null
+  } catch {
+    Write-Warning "Scheduled task registration for Caddy failed. Falling back to Startup folder launch."
+    $caddyStartupFallbackPath = Install-StartupPowerShellFallback -TaskName $CaddyTaskName -ProjectRoot $projectRoot -RunScript $caddyRunScript
+    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList @(
+      "-NoProfile",
+      "-ExecutionPolicy", "Bypass",
+      "-File", $caddyRunScript
+    )
+  }
 }
 
 Write-Host ""
-Write-Host "FlowPress Local host setup is ready."
+Write-Host "FlowPress host setup is ready."
 Write-Host "Uploads path: $UploadsPath"
 Write-Host "Port: $Port"
 if ($ShopName.Trim()) {
   Write-Host "Shop name: $($ShopName.Trim())"
 }
 Write-Host "Task name: $TaskName"
-Write-Host "Proxy task name: $CaddyTaskName"
 Write-Host "Cleanup task name: $CleanupTaskName"
 Write-Host "Open on this PC: http://127.0.0.1:$Port/"
-Write-Host "Open on phones: http://<branch-pc-ip>:$Port/"
+if ($SkipLocalSending) {
+  Write-Host "Local customer sending: disabled"
+} else {
+  Write-Host "Proxy task name: $CaddyTaskName"
+  Write-Host "Open on phones: http://<branch-pc-ip>:$Port/"
+}
 if ($startupFallbackPath) {
   Write-Host "Startup fallback: $startupFallbackPath"
 }
@@ -335,4 +348,8 @@ if ($caddyStartupFallbackPath) {
   Write-Host "Proxy startup fallback: $caddyStartupFallbackPath"
 }
 Write-Host ""
-Write-Host "Recommended next step: reserve a fixed LAN IP for this PC in the MikroTik DHCP server."
+if ($SkipLocalSending) {
+  Write-Host "Recommended next step: connect the public tunnel to http://127.0.0.1:$Port."
+} else {
+  Write-Host "Recommended next step: reserve a fixed LAN IP for this PC in the MikroTik DHCP server."
+}
