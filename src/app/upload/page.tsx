@@ -215,13 +215,13 @@ export default function UploadPage() {
     uploadProgress?.loadedBytes !== null && uploadProgress?.loadedBytes !== undefined && uploadProgress?.totalBytes
       ? `${prettyMb(uploadProgress.loadedBytes)} of ${prettyMb(uploadProgress.totalBytes)} sent`
       : `Total selected: ${prettyMb(totalBytes)}`;
-  const uploadProgressTitle = isSavingUpload ? "Almost done" : "Sending to CJ NET";
+  const uploadProgressTitle = isSavingUpload ? "Saving your files" : "Sending files to CJ NET";
   const uploadProgressDetail = isSavingUpload
-    ? "Your files reached CJ NET. We are saving them now."
-    : "Please keep this page open while your files are sending.";
+    ? "Your files have arrived. Please wait while we finish saving them."
+    : "Please keep this page open until the upload is complete.";
   const uploadProgressHint = isSavingUpload
-    ? "You will see the success screen in a moment."
-    : `${uploadPercentLeft}% left before saving starts.`;
+    ? "The success screen will appear when everything is ready."
+    : `${uploadPercentLeft}% remaining`;
 
   return (
     <main className="app-shell flex items-center justify-center">
@@ -334,7 +334,9 @@ export default function UploadPage() {
               </p>
             </div>
 
-            {files.length > 0 ? <p className="text-sm text-text-secondary">Total selected: {prettyMb(totalBytes)}</p> : null}
+            {files.length > 0 && !isSubmitting ? (
+              <p className="text-sm text-text-secondary">Total selected: {prettyMb(totalBytes)}</p>
+            ) : null}
 
             {submitState ? (
               <div className={`status-box ${submitState.tone === "error" ? "status-box-error" : "status-box-success"}`}>
@@ -351,7 +353,14 @@ export default function UploadPage() {
                   </div>
                   <div className="upload-progress-percent">{uploadPercent}%</div>
                 </div>
-                <div className="upload-progress-track" aria-hidden="true">
+                <div
+                  className="upload-progress-track"
+                  role="progressbar"
+                  aria-label="File upload progress"
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-valuenow={uploadPercent}
+                >
                   <div className="upload-progress-fill" style={{ width: `${uploadPercent}%` }} />
                 </div>
                 <div className="upload-progress-copy">
