@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, type ChangeEvent, type DragEvent, type FormEvent } from "react";
-import { getClientUploadLimits, getPublicApiUrl } from "@/lib/public-config";
+import { getClientUploadLimits, getPublicApiUrl, getPublicShopName } from "@/lib/public-config";
 import { validateUploadFiles } from "@/lib/upload-rules";
 
 type SubmitState = {
@@ -25,6 +25,7 @@ type UploadProgress = {
 };
 
 const LIMITS = getClientUploadLimits();
+const SHOP_NAME = getPublicShopName();
 
 function prettyMb(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -214,7 +215,9 @@ export default function UploadPage() {
     uploadProgress?.loadedBytes !== null && uploadProgress?.loadedBytes !== undefined && uploadProgress?.totalBytes
       ? `${prettyMb(uploadProgress.loadedBytes)} of ${prettyMb(uploadProgress.totalBytes)} sent`
       : `Total selected: ${prettyMb(totalBytes)}`;
-  const uploadProgressTitle = isSavingUpload ? "Saving your files" : "Sending files to CJ NET";
+  const uploadProgressTitle = isSavingUpload
+    ? "Checking and saving your files"
+    : `Sending files to ${SHOP_NAME || "CJ NET"}`;
   const uploadProgressDetail = isSavingUpload
     ? "Your files have arrived. Please wait while we finish saving them."
     : "Please keep this page open until the upload is complete.";
@@ -238,9 +241,10 @@ export default function UploadPage() {
           </div>
 
           <h1 className="display-title mt-6 text-3xl font-semibold tracking-tight text-foreground">Upload file</h1>
+          {SHOP_NAME ? <p className="mt-2 text-sm font-semibold text-foreground">Shop: {SHOP_NAME}</p> : null}
           {!isSubmitting ? (
             <p className="mt-3 text-sm leading-6 text-text-secondary">
-              Enter the customer name, choose the file, then send it to the shop PC.
+              Enter the customer name, choose the file, then send it to {SHOP_NAME || "the shop PC"}.
             </p>
           ) : null}
 

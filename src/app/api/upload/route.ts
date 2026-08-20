@@ -32,6 +32,7 @@ export function OPTIONS(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const requestStartedAt = performance.now();
   const roleError = ensureBackendApi();
 
   if (roleError) {
@@ -81,6 +82,7 @@ export async function POST(request: Request) {
   activeUploads += 1;
   try {
     const formData = await request.formData();
+    const parsedAt = performance.now();
     const customerName = String(formData.get("name") ?? "").trim();
     const fileEntries = formData.getAll("file").filter((entry): entry is File => entry instanceof File);
 
@@ -99,6 +101,7 @@ export async function POST(request: Request) {
     if (contentError) {
       return json(request, { success: false, error: contentError }, 400);
     }
+    const validatedAt = performance.now();
 
     const incomingBytes = fileEntries.reduce((total, file) => total + file.size, 0);
     const capacityError = await ensureStorageCapacity(incomingBytes);
@@ -106,8 +109,22 @@ export async function POST(request: Request) {
     if (capacityError) {
       return json(request, { success: false, error: capacityError }, 507);
     }
+    const capacityCheckedAt = performance.now();
 
     const savedFiles = await saveUploadedFiles(customerName, fileEntries);
+    const savedAt = performance.now();
+    const timings = {
+      parseMs: Number((parsedAt - requestStartedAt).toFixed(1)),
+      validateMs: Number((validatedAt - parsedAt).toFixed(1)),
+      capacityMs: Number((capacityCheckedAt - validatedAt).toFixed(1)),
+      saveMs: Number((savedAt - capacityCheckedAt).toFixed(1)),
+      totalMs: Number((savedAt - requestStartedAt).toFixed(1)),
+    };
+
+    console.info(
+      "[flowpress-local] upload complete",
+      JSON.stringify({ fileCount: fileEntries.length, totalBytes: incomingBytes, ...timings })
+    );
 
     return json(request, {
       success: true,
@@ -118,9 +135,20 @@ export async function POST(request: Request) {
         savedFilename: file.savedFilename,
         relativePath: file.relativePath,
       })),
-    }, 200);
+    }, 200, {
+      "Server-Timing": [
+        `parse;dur=${timings.parseMs}`,
+        `validate;dur=${timings.validateMs}`,
+        `capacity;dur=${timings.capacityMs}`,
+        `save;dur=${timings.saveMs}`,
+      ].join(", "),
+    });
   } catch (error) {
-    console.error("[flowpress-local] upload failed", error);
+    console.error(
+      "[flowpress-local] upload failed",
+      JSON.stringify({ totalMs: Number((performance.now() - requestStartedAt).toFixed(1)) }),
+      error
+    );
     return json(request, { success: false, error: "Upload failed due to a server error." }, 500);
   } finally {
     activeUploads -= 1;

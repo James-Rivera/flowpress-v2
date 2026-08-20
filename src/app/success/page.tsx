@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { getPublicShopName } from "@/lib/public-config";
 
 type SearchParams = Promise<{
   name?: string;
@@ -15,6 +16,7 @@ export default async function SuccessPage({
   const customerName = typeof params.name === "string" ? params.name : "Customer";
   const count = typeof params.count === "string" ? Number.parseInt(params.count, 10) : 0;
   const fileLabel = count === 1 ? "file" : "files";
+  const shopName = getPublicShopName();
 
   return (
     <main className="app-shell flex items-center justify-center">
@@ -27,13 +29,15 @@ export default async function SuccessPage({
           </div>
           <h1 className="display-title mt-6 text-3xl font-semibold tracking-tight text-foreground">Done</h1>
           <p className="mt-4 text-base leading-7 text-text-secondary">
-            {customerName} sent {count > 0 ? `${count} ${fileLabel}` : "their files"} successfully.
+            {customerName} sent {count > 0 ? `${count} ${fileLabel}` : "their files"} successfully
+            {shopName ? ` to ${shopName}` : ""}.
           </p>
 
           <div className="subtle-panel mt-6 rounded-2xl px-4 py-4 text-left">
             <p className="m-0 font-semibold">What happens next?</p>
             <p className="mt-2 mb-0 text-sm leading-6 text-text-secondary">
-              Tell the staff your name so they can open the files from the shared folder.
+              Tell {shopName ? `the staff at ${shopName}` : "the staff"} your name so they can open the files from the
+              shared folder.
             </p>
           </div>
 

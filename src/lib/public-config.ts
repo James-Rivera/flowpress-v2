@@ -9,6 +9,10 @@ export function getPublicApiUrl(pathname: string) {
   return backendBaseUrl ? `${backendBaseUrl}${normalizedPath}` : normalizedPath;
 }
 
+export function getPublicShopName() {
+  return (process.env.NEXT_PUBLIC_SHOP_NAME ?? "").trim();
+}
+
 export function getClientUploadLimits() {
   return {
     maxFileCount: getPositiveInt(process.env.NEXT_PUBLIC_UPLOAD_MAX_FILE_COUNT, 20),

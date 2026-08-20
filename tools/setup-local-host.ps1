@@ -2,6 +2,7 @@ param(
   [string]$UploadsPath = "C:\FlowPressData\uploads",
   [int]$Port = 3000,
   [string]$PublicFrontendOrigin = "",
+  [string]$ShopName = "",
   [string]$ShareName = "FlowPressUploads",
   [string]$TaskName = "FlowPressLocal",
   [string]$CaddyTaskName = "FlowPressLocalProxy",
@@ -207,6 +208,9 @@ if (-not (Test-Path -LiteralPath $envFile)) {
 
 Set-EnvValue -FilePath $envFile -Name "UPLOADS_DIR" -Value $UploadsPath
 Set-EnvValue -FilePath $envFile -Name "APP_ROLE" -Value "backend"
+if ($ShopName.Trim()) {
+  Set-EnvValue -FilePath $envFile -Name "NEXT_PUBLIC_SHOP_NAME" -Value $ShopName.Trim()
+}
 if ($PublicFrontendOrigin.Trim()) {
   Set-EnvValue -FilePath $envFile -Name "ALLOWED_ORIGINS" -Value $PublicFrontendOrigin.Trim().TrimEnd('/')
 }
@@ -316,6 +320,9 @@ Write-Host ""
 Write-Host "FlowPress Local host setup is ready."
 Write-Host "Uploads path: $UploadsPath"
 Write-Host "Port: $Port"
+if ($ShopName.Trim()) {
+  Write-Host "Shop name: $($ShopName.Trim())"
+}
 Write-Host "Task name: $TaskName"
 Write-Host "Proxy task name: $CaddyTaskName"
 Write-Host "Cleanup task name: $CleanupTaskName"

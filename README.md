@@ -25,6 +25,8 @@ There is no Syncthing dependency and no print queue. Staff work directly from th
 
 For the complete new-PC cutover, new MAC address, MikroTik backup, DHCP reservation, Hotspot IP Binding, Walled Garden, portal replacement, Vercel deployment, testing, and rollback procedure, follow [`docs/NEW_PC_AND_MIKROTIK_MIGRATION.md`](docs/NEW_PC_AND_MIKROTIK_MIGRATION.md). AI agents operating on the new PC must also follow [`AGENTS.md`](AGENTS.md).
 
+For an additional physical shop location, follow [`docs/SECOND_SHOP_DEPLOYMENT.md`](docs/SECOND_SHOP_DEPLOYMENT.md). Use the same `main` branch and separate deployment settings for each shop.
+
 ## Deployment Roles
 
 ### Backend: new 1 TB shop PC
@@ -33,6 +35,7 @@ The backend serves the local UI, accepts both public and local uploads, and owns
 
 ```dotenv
 APP_ROLE=backend
+NEXT_PUBLIC_SHOP_NAME=CJ NET - Shop Name
 UPLOADS_DIR=C:\FlowPressData\uploads
 ALLOWED_ORIGINS=https://upload.example.com
 NEXT_PUBLIC_BACKEND_BASE_URL=
@@ -46,6 +49,7 @@ The frontend serves the v2 customer interface but never writes to Vercel's tempo
 
 ```dotenv
 APP_ROLE=frontend
+NEXT_PUBLIC_SHOP_NAME=CJ NET - Shop Name
 NEXT_PUBLIC_BACKEND_BASE_URL=https://api-upload.example.com
 ```
 
@@ -56,13 +60,13 @@ Add the exact Vercel frontend origin to the backend's `ALLOWED_ORIGINS`. Do not 
 Copy or clone this repository onto the new PC, open an Administrator terminal in the project, and run:
 
 ```bat
-tools\setup-local-host.bat "C:\FlowPressData\uploads" "https://upload.example.com"
+tools\setup-local-host.bat "C:\FlowPressData\uploads" "https://upload.example.com" "CJ NET - Shop Name"
 ```
 
 If the 1 TB data disk is `D:`, use:
 
 ```bat
-tools\setup-local-host.bat "D:\FlowPressData\uploads" "https://upload.example.com"
+tools\setup-local-host.bat "D:\FlowPressData\uploads" "https://upload.example.com" "CJ NET - Shop Name"
 ```
 
 The setup performs these actions:

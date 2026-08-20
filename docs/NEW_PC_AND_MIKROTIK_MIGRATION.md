@@ -67,7 +67,7 @@ Open PowerShell on the new PC:
 
 ```powershell
 New-Item -ItemType Directory -Force -Path C:\FlowPress
-git clone --branch feature/public-local-unified --single-branch https://github.com/James-Rivera/flowpress-v2.git C:\FlowPress\app
+git clone --branch main --single-branch https://github.com/James-Rivera/flowpress-v2.git C:\FlowPress\app
 Set-Location C:\FlowPress\app
 ```
 
