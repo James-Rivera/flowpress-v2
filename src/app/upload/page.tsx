@@ -12,6 +12,12 @@ type SubmitState = {
   message: string;
 } | null;
 
+type UploadResponsePayload = {
+  success?: boolean;
+  error?: string;
+  uploadedCount?: number;
+};
+
 const LIMITS = getClientUploadLimits();
 
 function prettyMb(bytes: number) {
@@ -29,6 +35,66 @@ function mergeFiles(existing: File[], incoming: File[]) {
   return Array.from(map.values());
 }
 
+function sendUpload(
+  url: string,
+  formData: FormData,
+  onProgress: (progressPercent: number) => void
+) {
+  return new Promise<{ ok: boolean; status: number; payload: UploadResponsePayload }>((resolve, reject) => {
+    const request = new XMLHttpRequest();
+
+    request.open("POST", url);
+
+    request.upload.onprogress = (event) => {
+      if (!event.lengthComputable || event.total <= 0) return;
+      onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+    };
+
+    request.onload = () => {
+      const parsedPayload = parseUploadResponse(request.responseText);
+
+      resolve({
+        ok: request.status >= 200 && request.status < 300,
+        status: request.status,
+        payload: parsedPayload,
+      });
+    };
+
+    request.onerror = () => reject(new Error("Cannot reach the upload server. Please check the connection and try again."));
+    request.onabort = () => reject(new Error("Upload was cancelled."));
+
+    request.send(formData);
+  });
+}
+
+function parseUploadResponse(responseText: string): UploadResponsePayload {
+  try {
+    return JSON.parse(responseText) as UploadResponsePayload;
+  } catch {
+    return {};
+  }
+}
+
+function getUploadErrorMessage(response: { status: number; payload: UploadResponsePayload }) {
+  if (response.payload.error) {
+    return response.payload.error;
+  }
+
+  if (response.status === 413) {
+    return "Upload is too large for the public connection. Send fewer files at a time, or ask staff to use SEND FILES Wi-Fi.";
+  }
+
+  if (response.status === 429) {
+    return "Too many uploads. Please wait and try again.";
+  }
+
+  if (response.status >= 500) {
+    return "The upload server is busy or offline. Please try again shortly.";
+  }
+
+  return "Upload failed.";
+}
+
 export default function UploadPage() {
   const router = useRouter();
   const [customerName, setCustomerName] = useState("");
@@ -36,11 +102,13 @@ export default function UploadPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [submitState, setSubmitState] = useState<SubmitState>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function setChosenFiles(nextFiles: File[], mode: "replace" | "append" = "replace") {
     setFiles((current) => (mode === "append" ? mergeFiles(current, nextFiles) : nextFiles));
     setSubmitState(null);
+    setUploadProgress(null);
   }
 
   function onFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -71,6 +139,7 @@ export default function UploadPage() {
   function removeFile(index: number) {
     setFiles((current) => current.filter((_, currentIndex) => currentIndex !== index));
     setSubmitState(null);
+    setUploadProgress(null);
   }
 
   function openFilePicker() {
@@ -94,6 +163,7 @@ export default function UploadPage() {
 
     setIsSubmitting(true);
     setSubmitState(null);
+    setUploadProgress(0);
 
     const formData = new FormData();
     formData.set("name", customerName.trim());
@@ -103,21 +173,16 @@ export default function UploadPage() {
     }
 
     try {
-      const response = await fetch(getPublicApiUrl("/api/upload"), {
-        method: "POST",
-        body: formData,
+      const response = await sendUpload(getPublicApiUrl("/api/upload"), formData, (progressPercent) => {
+        setUploadProgress(progressPercent);
       });
-
-      const payload = (await response.json()) as {
-        success?: boolean;
-        error?: string;
-        uploadedCount?: number;
-      };
+      const { payload } = response;
 
       if (!response.ok || !payload.success) {
-        throw new Error(payload.error || "Upload failed.");
+        throw new Error(getUploadErrorMessage(response));
       }
 
+      setUploadProgress(100);
       const params = new URLSearchParams();
       params.set("name", customerName.trim());
       params.set("count", String(payload.uploadedCount ?? files.length));
@@ -128,10 +193,17 @@ export default function UploadPage() {
         message: error instanceof Error ? error.message : "Upload failed.",
       });
       setIsSubmitting(false);
+      setUploadProgress(null);
     }
   }
 
   const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+  const uploadPercent = uploadProgress ?? 0;
+  const uploadPercentLeft = Math.max(0, 100 - uploadPercent);
+  const uploadProgressText =
+    uploadPercent >= 100
+      ? "Upload sent. Saving files..."
+      : `${uploadPercent}% uploaded, ${uploadPercentLeft}% left`;
 
   return (
     <main className="app-shell flex items-center justify-center">
@@ -252,8 +324,20 @@ export default function UploadPage() {
               </div>
             ) : null}
 
+            {isSubmitting ? (
+              <div className="upload-progress" role="status" aria-live="polite">
+                <div className="flex items-center justify-between gap-3 text-sm font-semibold">
+                  <span>{uploadProgressText}</span>
+                  <span>{uploadPercent}%</span>
+                </div>
+                <div className="upload-progress-track" aria-hidden="true">
+                  <div className="upload-progress-fill" style={{ width: `${uploadPercent}%` }} />
+                </div>
+              </div>
+            ) : null}
+
             <button type="submit" className="primary-btn w-full text-base font-extrabold" disabled={isSubmitting}>
-              {isSubmitting ? "Uploading..." : "Send files"}
+              {isSubmitting ? (uploadPercent >= 100 ? "Saving files..." : "Sending files...") : "Send files"}
             </button>
           </form>
         </article>
