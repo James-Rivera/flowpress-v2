@@ -18,6 +18,12 @@ type UploadResponsePayload = {
   uploadedCount?: number;
 };
 
+type UploadProgress = {
+  percent: number;
+  loadedBytes: number | null;
+  totalBytes: number | null;
+};
+
 const LIMITS = getClientUploadLimits();
 
 function prettyMb(bytes: number) {
@@ -38,7 +44,7 @@ function mergeFiles(existing: File[], incoming: File[]) {
 function sendUpload(
   url: string,
   formData: FormData,
-  onProgress: (progressPercent: number) => void
+  onProgress: (progress: UploadProgress) => void
 ) {
   return new Promise<{ ok: boolean; status: number; payload: UploadResponsePayload }>((resolve, reject) => {
     const request = new XMLHttpRequest();
@@ -47,7 +53,11 @@ function sendUpload(
 
     request.upload.onprogress = (event) => {
       if (!event.lengthComputable || event.total <= 0) return;
-      onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+      onProgress({
+        percent: Math.min(100, Math.round((event.loaded / event.total) * 100)),
+        loadedBytes: event.loaded,
+        totalBytes: event.total,
+      });
     };
 
     request.onload = () => {
@@ -102,7 +112,7 @@ export default function UploadPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [submitState, setSubmitState] = useState<SubmitState>(null);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function setChosenFiles(nextFiles: File[], mode: "replace" | "append" = "replace") {
@@ -163,7 +173,7 @@ export default function UploadPage() {
 
     setIsSubmitting(true);
     setSubmitState(null);
-    setUploadProgress(0);
+    setUploadProgress({ percent: 0, loadedBytes: 0, totalBytes: totalBytes });
 
     const formData = new FormData();
     formData.set("name", customerName.trim());
@@ -173,8 +183,8 @@ export default function UploadPage() {
     }
 
     try {
-      const response = await sendUpload(getPublicApiUrl("/api/upload"), formData, (progressPercent) => {
-        setUploadProgress(progressPercent);
+      const response = await sendUpload(getPublicApiUrl("/api/upload"), formData, (progress) => {
+        setUploadProgress(progress);
       });
       const { payload } = response;
 
@@ -182,7 +192,7 @@ export default function UploadPage() {
         throw new Error(getUploadErrorMessage(response));
       }
 
-      setUploadProgress(100);
+      setUploadProgress({ percent: 100, loadedBytes: totalBytes, totalBytes: totalBytes });
       const params = new URLSearchParams();
       params.set("name", customerName.trim());
       params.set("count", String(payload.uploadedCount ?? files.length));
@@ -198,12 +208,20 @@ export default function UploadPage() {
   }
 
   const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
-  const uploadPercent = uploadProgress ?? 0;
+  const uploadPercent = uploadProgress?.percent ?? 0;
   const uploadPercentLeft = Math.max(0, 100 - uploadPercent);
-  const uploadProgressText =
-    uploadPercent >= 100
-      ? "Upload sent. Saving files..."
-      : `${uploadPercent}% uploaded, ${uploadPercentLeft}% left`;
+  const isSavingUpload = uploadPercent >= 100;
+  const sentBytesText =
+    uploadProgress?.loadedBytes !== null && uploadProgress?.loadedBytes !== undefined && uploadProgress?.totalBytes
+      ? `${prettyMb(uploadProgress.loadedBytes)} of ${prettyMb(uploadProgress.totalBytes)} sent`
+      : `Total selected: ${prettyMb(totalBytes)}`;
+  const uploadProgressTitle = isSavingUpload ? "Almost done" : "Sending to CJ NET";
+  const uploadProgressDetail = isSavingUpload
+    ? "Your files reached CJ NET. We are saving them now."
+    : "Please keep this page open while your files are sending.";
+  const uploadProgressHint = isSavingUpload
+    ? "You will see the success screen in a moment."
+    : `${uploadPercentLeft}% left before saving starts.`;
 
   return (
     <main className="app-shell flex items-center justify-center">
@@ -326,12 +344,20 @@ export default function UploadPage() {
 
             {isSubmitting ? (
               <div className="upload-progress" role="status" aria-live="polite">
-                <div className="flex items-center justify-between gap-3 text-sm font-semibold">
-                  <span>{uploadProgressText}</span>
-                  <span>{uploadPercent}%</span>
+                <div className="upload-progress-header">
+                  <div className="min-w-0">
+                    <p className="upload-progress-eyebrow">Step {isSavingUpload ? "2" : "1"} of 2</p>
+                    <p className="upload-progress-title">{uploadProgressTitle}</p>
+                  </div>
+                  <div className="upload-progress-percent">{uploadPercent}%</div>
                 </div>
                 <div className="upload-progress-track" aria-hidden="true">
                   <div className="upload-progress-fill" style={{ width: `${uploadPercent}%` }} />
+                </div>
+                <div className="upload-progress-copy">
+                  <p>{uploadProgressDetail}</p>
+                  <p className="upload-progress-amount">{sentBytesText}</p>
+                  <p className="upload-progress-hint">{uploadProgressHint}</p>
                 </div>
               </div>
             ) : null}
