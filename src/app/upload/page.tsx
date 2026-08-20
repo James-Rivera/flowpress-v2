@@ -209,7 +209,6 @@ export default function UploadPage() {
 
   const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
   const uploadPercent = uploadProgress?.percent ?? 0;
-  const uploadPercentLeft = Math.max(0, 100 - uploadPercent);
   const isSavingUpload = uploadPercent >= 100;
   const sentBytesText =
     uploadProgress?.loadedBytes !== null && uploadProgress?.loadedBytes !== undefined && uploadProgress?.totalBytes
@@ -219,16 +218,18 @@ export default function UploadPage() {
   const uploadProgressDetail = isSavingUpload
     ? "Your files have arrived. Please wait while we finish saving them."
     : "Please keep this page open until the upload is complete.";
-  const uploadProgressHint = isSavingUpload
-    ? "The success screen will appear when everything is ready."
-    : `${uploadPercentLeft}% remaining`;
 
   return (
     <main className="app-shell flex items-center justify-center">
       <section className="page-wrap customer-wrap">
         <article className="mx-auto w-full max-w-[460px] rounded-[1.75rem] border border-surface-border bg-surface-card px-6 py-7 shadow-[0_10px_28px_rgba(20,23,31,0.10)] sm:px-8 sm:py-8">
           <div className="flex items-center justify-between gap-3">
-            <Link href="/" className="secondary-btn !px-4 !py-2 !text-sm !font-medium">
+            <Link
+              href="/"
+              className={`secondary-btn !px-4 !py-2 !text-sm !font-medium ${isSubmitting ? "pointer-events-none opacity-50" : ""}`}
+              aria-disabled={isSubmitting}
+              tabIndex={isSubmitting ? -1 : undefined}
+            >
               Back
             </Link>
             <div className="w-full max-w-[150px]">
@@ -237,120 +238,17 @@ export default function UploadPage() {
           </div>
 
           <h1 className="display-title mt-6 text-3xl font-semibold tracking-tight text-foreground">Upload file</h1>
-          <p className="mt-3 text-sm leading-6 text-text-secondary">
-            Enter the customer name, choose the file, then send it to the shop PC.
-          </p>
+          {!isSubmitting ? (
+            <p className="mt-3 text-sm leading-6 text-text-secondary">
+              Enter the customer name, choose the file, then send it to the shop PC.
+            </p>
+          ) : null}
 
-          <form className="mt-6 space-y-4" onSubmit={onSubmit}>
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold">Customer name</span>
-              <input
-                className="input-field"
-                value={customerName}
-                onChange={(event) => setCustomerName(event.target.value)}
-                placeholder="Enter customer name"
-                autoComplete="name"
-                disabled={isSubmitting}
-              />
-            </label>
-
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold">Files</span>
-              <p className="mb-3 text-sm text-text-secondary">Tap to choose files, or drag them here.</p>
-              <label
-                className={`upload-dropzone ${isDragging ? "upload-dropzone-active" : ""} ${isSubmitting ? "opacity-70" : ""}`}
-                onDragOver={onDragOver}
-                onDragLeave={onDragLeave}
-                onDrop={onDrop}
-              >
-                <input
-                  ref={fileInputRef}
-                  className="sr-only"
-                  type="file"
-                  multiple
-                  onChange={onFileChange}
-                  disabled={isSubmitting}
-                />
-                {files.length === 0 ? (
-                  <>
-                    <span className="text-xl font-semibold text-foreground">Tap to choose files</span>
-                    <span className="mt-2 text-sm text-text-secondary">PDF, DOCX, JPG, JPEG, PNG</span>
-                  </>
-                ) : (
-                  <div className="w-full">
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-left text-base font-semibold text-foreground">Selected files</p>
-                        <p className="mt-1 text-left text-sm text-text-secondary">
-                          {files.length} file{files.length === 1 ? "" : "s"} ready
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className="secondary-btn !px-4 !py-2 !text-sm"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          openFilePicker();
-                        }}
-                        disabled={isSubmitting}
-                      >
-                        Add more files
-                      </button>
-                    </div>
-
-                    <ul className="mt-4 space-y-2">
-                      {files.map((file, index) => (
-                        <li
-                          key={`${file.name}-${file.size}-${file.lastModified}`}
-                          className="upload-file-row"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium text-foreground">{file.name}</p>
-                            <p className="mt-1 text-xs text-text-secondary">{prettyMb(file.size)}</p>
-                          </div>
-                          <button
-                            type="button"
-                            className="upload-file-remove"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              removeFile(index);
-                            }}
-                            disabled={isSubmitting}
-                          >
-                            Remove
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </label>
-            </label>
-
-            <div className="subtle-panel rounded-2xl px-4 py-4">
-              <p className="m-0 font-semibold">Upload limits</p>
-              <p className="mt-2 mb-0 text-sm leading-6 text-text-secondary">
-                Up to {LIMITS.maxFileCount} files, {LIMITS.maxFileSizeMb}MB each, {LIMITS.maxBatchSizeMb}MB total.
-              </p>
-            </div>
-
-            {files.length > 0 && !isSubmitting ? (
-              <p className="text-sm text-text-secondary">Total selected: {prettyMb(totalBytes)}</p>
-            ) : null}
-
-            {submitState ? (
-              <div className={`status-box ${submitState.tone === "error" ? "status-box-error" : "status-box-success"}`}>
-                {submitState.message}
-              </div>
-            ) : null}
-
+          <form className="mt-6" onSubmit={onSubmit}>
             {isSubmitting ? (
               <div className="upload-progress" role="status" aria-live="polite">
                 <div className="upload-progress-header">
-                  <div className="min-w-0">
-                    <p className="upload-progress-eyebrow">Step {isSavingUpload ? "2" : "1"} of 2</p>
-                    <p className="upload-progress-title">{uploadProgressTitle}</p>
-                  </div>
+                  <p className="upload-progress-title">{uploadProgressTitle}</p>
                   <div className="upload-progress-percent">{uploadPercent}%</div>
                 </div>
                 <div
@@ -366,14 +264,115 @@ export default function UploadPage() {
                 <div className="upload-progress-copy">
                   <p>{uploadProgressDetail}</p>
                   <p className="upload-progress-amount">{sentBytesText}</p>
-                  <p className="upload-progress-hint">{uploadProgressHint}</p>
                 </div>
               </div>
-            ) : null}
+            ) : (
+              <div className="space-y-4">
+                <label className="block">
+                  <span className="mb-2 block text-sm font-semibold">Customer name</span>
+                  <input
+                    className="input-field"
+                    value={customerName}
+                    onChange={(event) => setCustomerName(event.target.value)}
+                    placeholder="Enter customer name"
+                    autoComplete="name"
+                  />
+                </label>
 
-            <button type="submit" className="primary-btn w-full text-base font-extrabold" disabled={isSubmitting}>
-              {isSubmitting ? (uploadPercent >= 100 ? "Saving files..." : "Sending files...") : "Send files"}
-            </button>
+                <label className="block">
+                  <span className="mb-2 block text-sm font-semibold">Files</span>
+                  <p className="mb-3 text-sm text-text-secondary">Tap to choose files, or drag them here.</p>
+                  <label
+                    className={`upload-dropzone ${isDragging ? "upload-dropzone-active" : ""}`}
+                    onDragOver={onDragOver}
+                    onDragLeave={onDragLeave}
+                    onDrop={onDrop}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      className="sr-only"
+                      type="file"
+                      multiple
+                      onChange={onFileChange}
+                    />
+                    {files.length === 0 ? (
+                      <>
+                        <span className="text-xl font-semibold text-foreground">Tap to choose files</span>
+                        <span className="mt-2 text-sm text-text-secondary">PDF, DOCX, JPG, JPEG, PNG</span>
+                      </>
+                    ) : (
+                      <div className="w-full">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-left text-base font-semibold text-foreground">Selected files</p>
+                            <p className="mt-1 text-left text-sm text-text-secondary">
+                              {files.length} file{files.length === 1 ? "" : "s"} ready
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            className="secondary-btn !px-4 !py-2 !text-sm"
+                            onClick={(event) => {
+                              event.preventDefault();
+                              openFilePicker();
+                            }}
+                          >
+                            Add more files
+                          </button>
+                        </div>
+
+                        <ul className="mt-4 space-y-2">
+                          {files.map((file, index) => (
+                            <li
+                              key={`${file.name}-${file.size}-${file.lastModified}`}
+                              className="upload-file-row"
+                            >
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium text-foreground">{file.name}</p>
+                                <p className="mt-1 text-xs text-text-secondary">{prettyMb(file.size)}</p>
+                              </div>
+                              <button
+                                type="button"
+                                className="upload-file-remove"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  removeFile(index);
+                                }}
+                              >
+                                Remove
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </label>
+                </label>
+
+                <div className="subtle-panel rounded-2xl px-4 py-4">
+                  <p className="m-0 font-semibold">Upload limits</p>
+                  <p className="mt-2 mb-0 text-sm leading-6 text-text-secondary">
+                    Up to {LIMITS.maxFileCount} files, {LIMITS.maxFileSizeMb}MB each, {LIMITS.maxBatchSizeMb}MB total.
+                  </p>
+                </div>
+
+                {files.length > 0 ? (
+                  <p className="text-sm text-text-secondary">Total selected: {prettyMb(totalBytes)}</p>
+                ) : null}
+
+                {submitState ? (
+                  <div
+                    className={`status-box ${submitState.tone === "error" ? "status-box-error" : "status-box-success"}`}
+                  >
+                    {submitState.message}
+                  </div>
+                ) : null}
+
+                <button type="submit" className="primary-btn w-full text-base font-extrabold">
+                  Send files
+                </button>
+              </div>
+            )}
           </form>
         </article>
       </section>
